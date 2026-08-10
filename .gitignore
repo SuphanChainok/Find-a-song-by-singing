@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Wongnai Word2Vec: ข้อมูลและผลลัพธ์ที่สร้างใหม่ได้ ---
+# โฟลเดอร์ผลลัพธ์ทั้งหมด (~174 MB) สร้างใหม่ได้ด้วย 01_train_word2vec.py
+output/
+
+# คลังข้อมูลต้นทาง (~14 MB) สคริปต์ดาวน์โหลดเองอัตโนมัติจาก GitHub
+review_dataset.zip
+
+# ไฟล์โมเดล / cache / vector ที่อาจหลุดออกมานอก output/
+*.model
+*.model.*
+*.pkl
+*.npy
