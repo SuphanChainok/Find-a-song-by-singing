@@ -10,36 +10,60 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
   const recognitionRef = useRef<any>(null);
+  const stopTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestTranscriptRef = useRef<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        // ตั้งค่าให้ฟังเสียงต่อเนื่องไม่ตัดจบเอง
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.lang = 'th-TH';
-
-        rec.onresult = (event: any) => {
-          let fullText = '';
-          for (let i = 0; i < event.results.length; i++) {
-            fullText += event.results[i][0].transcript;
-          }
-          setTranscript(fullText);
-        };
-
-        rec.onerror = (e: any) => {
-          console.error('Speech recognition error:', e);
-          setIsRecording(false);
-        };
-
-        recognitionRef.current = rec;
+      if (!SpeechRecognition) {
+        setErrorMessage('เบราว์เซอร์ไม่รองรับการแปลงเสียง แนะนำให้ใช้ Google Chrome ครับ');
+        return;
       }
+
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'th-TH';
+
+      rec.onresult = (event: any) => {
+        let currentText = '';
+        for (let i = 0; i < event.results.length; i++) {
+          currentText += event.results[i][0].transcript;
+        }
+        setTranscript(currentText);
+        latestTranscriptRef.current = currentText; // อัปเดตข้อความล่าสุดเก็บไว้
+      };
+
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        if (event.error === 'not-allowed') {
+          setErrorMessage('กรุณากดอนุญาตการใช้งานไมโครโฟน');
+        }
+      };
+
+      rec.onend = () => {
+        // เมื่อเบราว์เซอร์หยุดรับเสียง ให้ตั้งดีเลย์ 5 วินาทีก่อนเปลี่ยนสถานะและค้นหา
+        stopTimerRef.current = setTimeout(() => {
+          setIsRecording(false);
+          if (latestTranscriptRef.current) {
+            handleSearch(latestTranscriptRef.current);
+          }
+        }, 5000); // 5000ms = 5 วินาที
+      };
+
+      recognitionRef.current = rec;
     }
+
+    return () => {
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    };
   }, []);
 
   const handleSearch = async (textToSearch: string) => {
@@ -62,22 +86,39 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
     }
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
+    setErrorMessage('');
+
+    // เคลียร์ Timer เก่า (ถ้ามี)
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+
     if (!recognitionRef.current) {
-      alert('เบราว์เซอร์ไม่รองรับ แนะนำให้ใช้ Google Chrome ครับ');
+      alert('เบราว์เซอร์ไม่รองรับ แนะนำให้เปิดด้วย Google Chrome');
       return;
     }
 
     if (isRecording) {
+      // กดหยุดเองทันที (ไม่ต้องรอดีเลย์)
       recognitionRef.current.stop();
       setIsRecording(false);
       if (transcript) {
         handleSearch(transcript);
       }
     } else {
-      setTranscript('');
-      setIsRecording(true);
-      recognitionRef.current.start();
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        setTranscript('');
+        latestTranscriptRef.current = '';
+        setIsRecording(true);
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error('Mic Access Denied:', err);
+        setErrorMessage('ไม่สามารถเข้าถึงไมโครโฟนได้');
+        setIsRecording(false);
+      }
     }
   };
 
@@ -97,11 +138,17 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
 
       <p className="text-sm text-gray-300">
         {isRecording
-          ? '🔴 กำลังอัดเสียง... (ร้องได้เรื่อยๆ แล้วกดปุ่ม⏹️ เพื่อค้นหา)'
+          ? '🔴 กำลังอัดเสียง... (ร้องจบแล้วระบบจะหน่วงรอ 5 วินาทีก่อนค้นหา หรือกด⏹️ เพื่อค้นหาทันที)'
           : isLoading
           ? 'กำลังค้นหาเพลงใน Dataset...'
           : 'กดปุ่มไมค์เพื่อเริ่มร้องเพลง'}
       </p>
+
+      {errorMessage && (
+        <p className="text-xs text-red-400 bg-red-950/50 p-2 rounded-lg border border-red-800">
+          ⚠️ {errorMessage}
+        </p>
+      )}
 
       {transcript && (
         <div className="mt-2 text-center p-3 bg-slate-800 rounded-lg max-w-md w-full">
