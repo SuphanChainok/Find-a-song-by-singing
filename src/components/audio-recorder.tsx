@@ -13,59 +13,9 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
   const [errorMessage, setErrorMessage] = useState('');
 
   const recognitionRef = useRef<any>(null);
+  const latestTranscriptRef = useRef<string>('');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-      if (!SpeechRecognition) {
-        setErrorMessage('เบราว์เซอร์นี้ไม่รองรับไมค์ แนะนำให้เปิดด้วย Google Chrome หรือ Safari ครับ');
-        return;
-      }
-
-      const rec = new SpeechRecognition();
-      rec.continuous = false; // continuous = false เสถียรและทำงานเร็วที่สุดบนมือถือ
-      rec.interimResults = true;
-      rec.lang = 'th-TH';
-
-      rec.onstart = () => {
-        setIsRecording(true);
-        setErrorMessage('');
-      };
-
-      rec.onresult = (event: any) => {
-        let currentText = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript;
-        }
-        setTranscript(currentText);
-      };
-
-      rec.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setErrorMessage(
-            'เบราว์เซอร์ปฏิเสธการใช้ไมค์ กรุณากดอนุญาตสิทธิ์ไมค์ หรือลองเปิดใน Safari/Chrome โดยตรง'
-          );
-        } else if (event.error === 'no-speech') {
-          setErrorMessage('ไม่ได้ยินเสียงร้อง กรุณากดไมค์แล้วร้องใหม่อีกครั้งครับ');
-        } else {
-          setErrorMessage(`ไม่สามารถรับเสียงได้ (${event.error})`);
-        }
-      };
-
-      rec.onend = () => {
-        setIsRecording(false);
-      };
-
-      recognitionRef.current = rec;
-    }
-  }, []);
-
-  // ฟังก์ชันส่งคำร้องเพลงไปค้นหาใน Dataset
+  // ฟังก์ชันส่งคำร้องเพลงไปค้นหาใน API
   const handleSearch = async (textToSearch: string) => {
     if (!textToSearch || !textToSearch.trim()) return;
     setIsLoading(true);
@@ -88,7 +38,62 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
     }
   };
 
-  // ปุ่มเปิด-ปิดไมค์
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        setErrorMessage('เบราว์เซอร์นี้ไม่รองรับระบบเปลี่ยนเสียงเป็นข้อความ แนะนำให้ใช้ Google Chrome หรือ Safari ครับ');
+        return;
+      }
+
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = 'th-TH';
+
+      rec.onstart = () => {
+        setIsRecording(true);
+        setErrorMessage('');
+        setTranscript('');
+        latestTranscriptRef.current = '';
+      };
+
+      rec.onresult = (event: any) => {
+        let currentText = '';
+        for (let i = 0; i < event.results.length; i++) {
+          currentText += event.results[i][0].transcript;
+        }
+        setTranscript(currentText);
+        latestTranscriptRef.current = currentText;
+      };
+
+      rec.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setErrorMessage('เบราว์เซอร์ปฏิเสธการใช้ไมค์ กรุณากดอนุญาตสิทธิ์ไมค์ในเบราว์เซอร์');
+        } else if (event.error === 'no-speech') {
+          setErrorMessage('ไม่ได้ยินเสียงร้อง กรุณากดไมค์แล้วลองใหม่อีกครั้ง');
+        } else {
+          setErrorMessage(`ไม่สามารถรับเสียงได้ (${event.error})`);
+        }
+      };
+
+      rec.onend = () => {
+        setIsRecording(false);
+        // สั่งค้นหาทันทีที่หยุดฟัง
+        if (latestTranscriptRef.current && latestTranscriptRef.current.trim()) {
+          handleSearch(latestTranscriptRef.current);
+        }
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, []);
+
   const toggleRecording = () => {
     setErrorMessage('');
 
@@ -98,17 +103,10 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
     }
 
     if (isRecording) {
-      // สั่งหยุดอัด
       recognitionRef.current.stop();
-      setIsRecording(false);
-
-      // ส่งข้อความไปหาเพลงทันที
-      if (transcript.trim()) {
-        handleSearch(transcript);
-      }
     } else {
-      // เริ่มฟังเสียงทันทีที่กด (ไม่ผ่าน await)
       setTranscript('');
+      latestTranscriptRef.current = '';
       try {
         recognitionRef.current.start();
       } catch (err) {
@@ -116,14 +114,13 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
         try {
           recognitionRef.current.stop();
         } catch (e) {}
-        setErrorMessage('ระบบไมค์กำลังรีเซ็ต กรุณากดปุ่มไมค์ใหม่อีกครั้งครับ');
+        setErrorMessage('ระบบไมค์กำลังรีเซ็ต กรุณากดปุ่มใหม่อีกครั้งครับ');
       }
     }
   };
 
   return (
     <div className="flex flex-col items-center gap-4 p-6 bg-slate-900 rounded-xl text-white w-full max-w-md mx-auto">
-      {/* ปุ่มอัดเสียง */}
       <button
         onClick={toggleRecording}
         disabled={isLoading}
@@ -138,25 +135,16 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
 
       <p className="text-sm text-gray-300 text-center">
         {isRecording
-          ? '🔴 กำลังฟังเสียงร้อง... (ร้องเสร็จแล้วกดปุ่ม ⏹️ เพื่อค้นหา)'
+          ? '🔴 กำลังฟังเสียงร้อง... (กดปุ่ม ⏹️ หรือร้องจบระบบจะค้นหาให้อัตโนมัติ)'
           : isLoading
           ? 'กำลังค้นหาเพลงในระบบ...'
           : 'กดปุ่มไมค์เพื่อเริ่มร้องเพลง'}
       </p>
 
-      {/* ข้อความเสียงที่จับได้ */}
       {transcript && (
         <div className="mt-1 text-center p-3 bg-slate-800 rounded-lg w-full border border-slate-700">
           <p className="text-xs text-purple-400 font-semibold">เสียงที่จับได้:</p>
           <p className="text-lg text-gray-100 mt-1 font-medium">"{transcript}"</p>
-          {!isRecording && !isLoading && (
-            <button
-              onClick={() => handleSearch(transcript)}
-              className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-xs rounded-lg transition-colors font-semibold shadow"
-            >
-              🔍 ค้นหาเพลงนี้
-            </button>
-          )}
         </div>
       )}
 
@@ -166,7 +154,6 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
         </p>
       )}
 
-      {/* ช่องพิมพ์ค้นหาสำรอง */}
       <div className="w-full border-t border-slate-800 pt-4 mt-2">
         <p className="text-xs text-purple-300 mb-2 text-center">
           หรือพิมพ์เนื้อร้องเพื่อค้นหาโดยตรง:
@@ -176,7 +163,10 @@ export default function AudioRecorder({ onSearchResult }: AudioRecorderProps) {
             type="text"
             placeholder="เช่น เอาแรงเป็นทุน..."
             value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
+            onChange={(e) => {
+              setTranscript(e.target.value);
+              latestTranscriptRef.current = e.target.value;
+            }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch(transcript)}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
           />

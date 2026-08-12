@@ -20,13 +20,18 @@ export function searchSongs(queryText: string): SearchResult[] {
 
   const fileContent = fs.readFileSync(csvFilePath, 'utf8');
 
-  // 1. ทำความสะอาดข้อความที่ร้องมา (ลบเว้นวรรค เครื่องหมายสัญลักษณ์ และแปลงเป็นตัวพิมพ์เล็ก)
+  // 1. ทำความสะอาดข้อความค้นหา
   const cleanQuery = queryText.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
-
-  // ถ้าคำร้องสั้นเกินไป (น้อยกว่า 2 ตัวอักษร) ไม่ต้องค้นหา
   if (cleanQuery.length < 2) return [];
 
-  // แยกไฟล์ CSV ออกเป็นบล็อกของแต่ละเพลง
+  // แยกข้อความที่ User ร้อง ออกเป็นชิ้นสั้นๆ ชิ้นละ 2 ตัวอักษร (Bi-grams)
+  const queryChunks: string[] = [];
+  const chunkSize = 2;
+  for (let i = 0; i <= cleanQuery.length - chunkSize; i++) {
+    queryChunks.push(cleanQuery.substring(i, i + chunkSize));
+  }
+  const totalChunks = Math.max(1, queryChunks.length);
+
   const blocks = fileContent.split(/\nen,country_lyrics/g);
   const results: SearchResult[] = [];
 
@@ -43,46 +48,42 @@ export function searchSongs(queryText: string): SearchResult[] {
 
     if (!songName) continue;
 
-    // ทำความสะอาดเนื้อเพลงในบล็อก
-    const cleanBlockText = block.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
+    // ดึงเฉพาะเนื้อเพลงจริง
+    const lyricLines = block
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l &&
+          !l.startsWith('en,country_lyrics') &&
+          !l.includes('langcode') &&
+          !/^\d+$/.test(l)
+      );
 
-    let score = 0;
-    const exactMatchIndex = cleanBlockText.indexOf(cleanQuery);
+    if (lyricLines.length === 0) continue;
 
-    // 2. คำนวณคะแนนความเหมือน (Matching Score)
-    if (exactMatchIndex !== -1) {
-      // กรณีตรงกันทั้งท่อนแบบเป๊ะๆ
-      score = 100;
-    } else {
-      // กรณีออกเสียงเพี้ยนหรือตรงบางคำ (คำนวณผ่าน N-Gram 2 ตัวอักษร)
-      const chunkSize = 2;
-      let matchCount = 0;
-      const totalChunks = Math.max(1, cleanQuery.length - chunkSize + 1);
+    const fullLyrics = lyricLines.join(' ');
+    const cleanLyrics = fullLyrics.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
+    const cleanTitle = songName.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
 
-      for (let i = 0; i <= cleanQuery.length - chunkSize; i++) {
-        const chunk = cleanQuery.substring(i, i + chunkSize);
-        if (cleanBlockText.includes(chunk)) {
-          matchCount++;
-        }
+    // 2. คำนวณว่าชิ้นส่วนคำที่ User ร้อง โผล่ในเนื้อเพลงนี้คิดเป็นกี่ %
+    let matchCount = 0;
+    for (const chunk of queryChunks) {
+      if (cleanLyrics.includes(chunk) || cleanTitle.includes(chunk)) {
+        matchCount++;
       }
-
-      const ratio = matchCount / totalChunks;
-
-      // แปลงอัตราส่วนความเหมือนเป็นคะแนน 0-99%
-      score = Math.round(ratio * 100);
     }
 
-    // 3. กรองเฉพาะเพลงที่มีความเหมือนเกิน 50% เท่านั้น (อันที่ไม่เหมือนจะไม่ถูกเก็บเข้ามา)
-    if (score >= 50) {
-      // ดึงท่อนเนื้อเพลงตัวอย่าง
-      const lines = block
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(
-          (l) => l && !l.startsWith('en,country_lyrics') && !l.includes('langcode')
-        );
+    let score = Math.round((matchCount / totalChunks) * 100);
 
-      const snippet = lines.slice(0, 3).join(' ');
+    // ถ้ามีประโยคตรงกันเต็มๆ ให้คะแนน 100%
+    if (cleanLyrics.includes(cleanQuery) || cleanTitle.includes(cleanQuery)) {
+      score = 100;
+    }
+
+    // 3. กรองเฉพาะเพลงที่ตรงเกิน 25% ขึ้นไป (รองรับคำเพี้ยนได้สบายๆ)
+    if (score >= 25) {
+      const snippet = lyricLines.slice(0, 3).join(' ');
 
       results.push({
         song_name: songName,
@@ -93,6 +94,6 @@ export function searchSongs(queryText: string): SearchResult[] {
     }
   }
 
-  // 4. เรียงลำดับจากเพลงที่ Score สูงสุด (เหมือนที่สุด) ไปหาน้อยสุด
-  return results.sort((a, b) => b.score - a.score);
+  // 4. เรียงจากคะแนนมากไปน้อย แล้วเอาเฉพาะ Top 5
+  return results.sort((a, b) => b.score - a.score).slice(0, 5);
 }
