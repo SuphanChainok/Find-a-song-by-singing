@@ -1,20 +1,19 @@
-// เปลี่ยนจาก '@/lib/search-dataset' เป็น '@/lib/dataset-search'
-import { searchSongs } from '@/lib/dataset-search'; 
 import { NextResponse } from 'next/server';
+import { searchSongs } from '@/lib/dataset-search';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { query } = body;
 
-    if (!query) {
+    if (!query || !query.trim()) {
       return NextResponse.json(
-        { error: 'ไม่พบข้อความเนื้อร้องที่ส่งมา' },
+        { error: 'ไม่พบคำค้นหา' },
         { status: 400 }
       );
     }
 
-    // ค้นหาเพลงใน CSV จากข้อความร้อง
+    // ค้นหาเพลงใน CSV
     const matches = searchSongs(query);
 
     return NextResponse.json({
@@ -23,9 +22,9 @@ export async function POST(request: Request) {
       results: matches,
     });
   } catch (error) {
-    console.error('Search error:', error);
+    console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการค้นหาข้อมูล' },
+      { error: 'เกิดข้อผิดพลาดในการค้นหา' },
       { status: 500 }
     );
   }
