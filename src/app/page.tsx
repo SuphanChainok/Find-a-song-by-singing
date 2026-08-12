@@ -100,7 +100,7 @@ export default function HomePage() {
             <span className="halo-ring absolute w-[270px] h-[270px] rounded-full border border-[var(--marigold)]/30" style={{ animationDelay: '0.6s' }} />
             <span className="halo-ring absolute w-[200px] h-[200px] rounded-full border border-[var(--teal-glow)]/25" style={{ animationDelay: '1.2s' }} />
 
-            {/* คอมโพเนนต์อัดเสียง (ไม่แก้ไข) */}
+            {/* คอมโพเนนต์อัดเสียง */}
             <div className="relative z-10">
               <AudioRecorder onSearchResult={handleSearchResult} />
             </div>
@@ -162,6 +162,12 @@ export default function HomePage() {
             ) : (
               searchResults.map((song, index) => {
                 const tone = scoreTone(song.score ?? 0);
+                const ytUrl =
+                  song.youtube_url ||
+                  `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                    `${song.song_name} ${song.artist}`
+                  )}`;
+
                 return (
                   <div
                     key={index}
@@ -190,7 +196,8 @@ export default function HomePage() {
                           <p className="text-sm text-gray-400">ศิลปิน: {song.artist}</p>
                         </div>
 
-                        <div className="shrink-0 relative w-14 h-14 rounded-full flex items-center justify-center"
+                        <div
+                          className="shrink-0 relative w-14 h-14 rounded-full flex items-center justify-center"
                           style={{ background: `conic-gradient(${tone.accent} ${song.score}%, rgba(255,255,255,0.08) 0)` }}
                         >
                           <div
@@ -207,6 +214,27 @@ export default function HomePage() {
                         style={{ fontFamily: 'var(--font-mono)' }}
                       >
                         &ldquo;{song.matched_snippet}&rdquo;
+                      </div>
+
+                      {/* 🔥 ปุ่ม YouTube โฉมใหม่: แดงนีออน เรืองแสง โดดเด่น สวยงาม */}
+                      <div className="pt-3 flex justify-end">
+                        <a
+                          href={ytUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-300 shadow-md hover:shadow-red-600/40 hover:scale-[1.03] active:scale-95"
+                          style={{
+                            background: 'linear-gradient(135deg, #FF0000 0%, #D00000 100%)',
+                            boxShadow: '0 0 15px rgba(255, 0, 0, 0.35)',
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          {/* ไอคอน YouTube สัญลักษณ์วงกลมสีขาว */}
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white text-[#FF0000] text-[10px] font-black group-hover:scale-110 transition-transform">
+                            ▶
+                          </span>
+                          <span className="tracking-wide">ฟังเพลงบน YouTube</span>
+                        </a>
                       </div>
                     </div>
                   </div>
