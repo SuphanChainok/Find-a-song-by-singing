@@ -5,7 +5,7 @@
  * Displays a single song match result with score, album art, artist, and links
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { Music, ExternalLink, Play, Pause, Headphones, MonitorPlay } from "lucide-react";
 import { SongResult } from "@/types/music";
@@ -70,12 +70,17 @@ function AlbumArt({ src, title }: { src?: string; title: string }) {
 
 export default function SongResultCard({ song, rank, isTopResult }: SongResultCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioEl] = useState(() =>
-    typeof window !== "undefined" ? new Audio() : null
-  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const togglePreview = () => {
-    if (!song.previewUrl || !audioEl) return;
+    if (!song.previewUrl) return;
+    if (typeof window === "undefined") return;
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+    const audioEl = audioRef.current;
+
     if (isPlaying) {
       audioEl.pause();
       setIsPlaying(false);
@@ -138,7 +143,7 @@ export default function SongResultCard({ song, rank, isTopResult }: SongResultCa
         )}
         {song.matched_lyric_snippet && (
           <p className="text-violet-300/80 text-xs mt-2 italic line-clamp-2 leading-relaxed">
-            "{song.matched_lyric_snippet}"
+            &ldquo;{song.matched_lyric_snippet}&rdquo;
           </p>
         )}
       </div>

@@ -1,39 +1,58 @@
 'use client';
 
 import { useState } from 'react';
-import { Chonburi, IBM_Plex_Sans_Thai, Space_Mono } from 'next/font/google';
+import {
+  AudioLines,
+  Disc3,
+  ListMusic,
+  MonitorPlay,
+  Music2,
+  Radio,
+} from 'lucide-react';
 import AudioRecorder from '@/components/audio-recorder';
-
-const chonburi = Chonburi({
-  subsets: ['thai', 'latin'],
-  weight: '400',
-  variable: '--font-display',
-});
-
-const plexThai = IBM_Plex_Sans_Thai({
-  subsets: ['thai', 'latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-body',
-});
-
-const spaceMono = Space_Mono({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-mono',
-});
+import type { SongMatch, SongSearchResponse } from '@/types/music';
 
 function scoreTone(score: number) {
-  if (score >= 80) return { accent: 'var(--marigold)', label: 'text-[var(--marigold)]' };
-  if (score >= 50) return { accent: 'var(--neon-pink)', label: 'text-[var(--neon-pink)]' };
-  return { accent: 'var(--teal-glow)', label: 'text-[var(--teal-glow)]' };
+  if (score >= 80) return { text: 'text-emerald-400', bar: 'bg-emerald-400', glow: 'from-emerald-500/30 to-teal-600/20' };
+  if (score >= 50) return { text: 'text-amber-400', bar: 'bg-amber-400', glow: 'from-amber-500/25 to-orange-600/15' };
+  return { text: 'text-zinc-400', bar: 'bg-zinc-500', glow: 'from-zinc-600/20 to-zinc-700/10' };
+}
+
+function ArtTile({ size, tone }: { size: 'lg' | 'sm'; tone: ReturnType<typeof scoreTone> }) {
+  const dim = size === 'lg' ? 'h-24 w-24 rounded-2xl sm:h-28 sm:w-28' : 'h-12 w-12 rounded-xl';
+  const icon = size === 'lg' ? 'h-10 w-10' : 'h-5 w-5';
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center bg-gradient-to-br ${tone.glow} ${dim} border border-white/10`}
+    >
+      <Music2 className={`${icon} text-zinc-300`} strokeWidth={1.5} />
+      {size === 'lg' && (
+        <span className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5" />
+      )}
+    </div>
+  );
+}
+
+function ScoreMeter({ score }: { score: number }) {
+  const tone = scoreTone(score);
+  return (
+    <div className="flex w-20 shrink-0 flex-col items-end gap-1.5">
+      <span className={`text-sm font-bold ${tone.text}`} style={{ fontFamily: 'var(--font-mono)' }}>
+        {score}%
+      </span>
+      <div className="h-1 w-full overflow-hidden rounded-full bg-white/8">
+        <div className={`score-fill h-full rounded-full ${tone.bar}`} style={{ width: `${Math.max(score, 4)}%` }} />
+      </div>
+    </div>
+  );
 }
 
 export default function HomePage() {
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SongMatch[]>([]);
   const [transcribedText, setTranscribedText] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearchResult = (data: any) => {
+  const handleSearchResult = (data: SongSearchResponse) => {
     setHasSearched(true);
     if (data.success) {
       setTranscribedText(data.transcribed_text || '');
@@ -43,237 +62,244 @@ export default function HomePage() {
     }
   };
 
+  const topResult = searchResults[0];
+  const otherResults = searchResults.slice(1);
+
   return (
     <main
-      className={`${chonburi.variable} ${plexThai.variable} ${spaceMono.variable} hs-search relative min-h-screen overflow-hidden text-[var(--paper)] flex flex-col items-center py-14 px-4`}
-      style={{
-        background: 'var(--bg-night)',
-        fontFamily: 'var(--font-body)',
-      }}
+      className="relative flex min-h-dvh flex-col text-zinc-100"
+      style={{ fontFamily: 'var(--font-body)' }}
     >
       {/* แสงเรืองพื้นหลัง */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[560px] h-[560px] rounded-full bg-[var(--neon-pink)] opacity-[0.14] blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full bg-[var(--marigold)] opacity-[0.12] blur-[110px]" />
+      <div className="ambient-glow" />
 
-      {/* แถวไฟประดับด้านบน */}
-      <div className="relative z-10 flex gap-3 mb-8" aria-hidden="true">
-        {Array.from({ length: 13 }).map((_, i) => (
+      {/* ── แถบด้านบน ── */}
+      <header className="sticky top-0 z-40 border-b border-white/6 bg-zinc-950/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <Disc3 className="spin-slow h-6 w-6 text-emerald-400" strokeWidth={1.8} />
+            <span
+              className="text-lg leading-none text-zinc-50"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              HumSearch
+            </span>
+          </div>
           <span
-            key={i}
-            className="bunting-dot block w-2 h-2 rounded-full"
-            style={{
-              background: i % 3 === 0 ? 'var(--marigold)' : i % 3 === 1 ? 'var(--neon-pink)' : 'var(--teal-glow)',
-              animationDelay: `${i * 0.15}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="relative z-10 max-w-2xl w-full text-center space-y-8">
-        {/* หัวเรื่อง */}
-        <div className="space-y-3">
-          <span
-            className="inline-block text-xs tracking-[0.3em] uppercase text-[var(--marigold)]"
+            className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium tracking-wide text-emerald-300"
             style={{ fontFamily: 'var(--font-mono)' }}
           >
-            🎪 ตู้เพลงลูกทุ่งดิจิทัล
+            LUK THUNG FM
+          </span>
+        </div>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 sm:px-6">
+        {/* ── Hero + ปุ่มอัดเสียง (กึ่งกลางจอตอนยังไม่ค้นหา) ── */}
+        <section
+          className={`flex w-full flex-col items-center text-center ${
+            hasSearched ? 'pt-14 sm:pt-20' : 'flex-1 justify-center py-12'
+          }`}
+        >
+          <span
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-4 py-1.5 text-xs tracking-[0.18em] text-zinc-400"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            <Radio className="h-3.5 w-3.5 text-emerald-400" />
+            ตู้เพลงลูกทุ่งดิจิทัล
           </span>
           <h1
-            className="text-4xl sm:text-5xl leading-tight bg-clip-text text-transparent"
-            style={{
-              fontFamily: 'var(--font-display)',
-              backgroundImage: 'linear-gradient(90deg, var(--neon-pink), var(--marigold))',
-              textShadow: '0 0 40px rgba(255,45,135,0.25)',
-            }}
+            className="mt-5 text-4xl leading-tight text-zinc-50 sm:text-6xl"
+            style={{ fontFamily: 'var(--font-display)' }}
           >
-            Hum &amp; Sing Search
-          </h1>
-          <p className="text-gray-400">
-            ร้องเพลงหรือพูดเนื้อร้องใส่ไมค์ เพื่อค้นหาเพลงลูกทุ่งที่ใกล้เคียงที่สุด
-          </p>
-        </div>
-
-        {/* เวที + ปุ่มอัดเสียง */}
-        <div className="relative flex flex-col items-center py-6">
-          <div className="relative flex items-center justify-center">
-            <span className="halo-ring absolute w-[340px] h-[340px] rounded-full border border-[var(--neon-pink)]/25" />
-            <span className="halo-ring absolute w-[270px] h-[270px] rounded-full border border-[var(--marigold)]/30" style={{ animationDelay: '0.6s' }} />
-            <span className="halo-ring absolute w-[200px] h-[200px] rounded-full border border-[var(--teal-glow)]/25" style={{ animationDelay: '1.2s' }} />
-
-            {/* คอมโพเนนต์อัดเสียง */}
-            <div className="relative z-10">
-              <AudioRecorder onSearchResult={handleSearchResult} />
-            </div>
-          </div>
-          <p
-            className="mt-6 text-xs text-gray-500 uppercase tracking-wider"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            🎤 กดปุ่มไมค์ แล้วฮัมทำนองหรือร้องท่อนที่จำได้
-          </p>
-        </div>
-
-        {/* แสดงข้อความที่จับเสียงได้ */}
-        {transcribedText && (
-          <div
-            className="text-left rounded-xl p-4 border-l-4"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--teal-glow)' }}
-          >
-            <span
-              className="text-xs font-semibold block uppercase tracking-wider text-[var(--teal-glow)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              เสียงร้องที่คุณร้อง
+            ร้องได้ &hellip;
+            <span className="bg-gradient-to-r from-emerald-300 via-teal-300 to-sky-300 bg-clip-text text-transparent">
+              เพลงเดียวกัน
             </span>
-            <p className="text-lg text-gray-100 mt-1 italic">&ldquo;{transcribedText}&rdquo;</p>
-          </div>
-        )}
+          </h1>
+          <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-zinc-400 sm:text-base">
+            ฮัมทำนอง ร้องเพลง หรือพิมพ์เนื้อร้องใส่ไมค์
+            แล้วให้เราช่วยหาเพลงลูกทุ่งที่คุณกำลังนึกถึง
+          </p>
+        {/* ── ปุ่มอัดเสียง + ค้นหา ── */}
+        <div className="mt-12 flex w-full justify-center">
+          <AudioRecorder onSearchResult={handleSearchResult} />
+        </div>
+        </section>
 
-        {/* ส่วนแสดงผลลัพธ์เพลงที่ใกล้เคียงที่สุด */}
+        {/* ── ผลลัพธ์ ── */}
         {hasSearched && (
-          <div className="space-y-4 text-left">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h2
-                className="text-xl text-gray-100"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                🎵 เพลงที่ใกล้เคียงที่สุด
+          <section className="mt-16 pb-24">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="flex items-center gap-2.5 text-xl text-zinc-100" style={{ fontFamily: 'var(--font-display)' }}>
+                <ListMusic className="h-5 w-5 text-emerald-400" />
+                เพลงที่ใกล้เคียงที่สุด
               </h2>
-              <span
-                className="text-xs px-2.5 py-1 rounded-full border"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  color: 'var(--marigold)',
-                  borderColor: 'rgba(255,176,32,0.3)',
-                  background: 'rgba(255,176,32,0.08)',
-                }}
-              >
-                {searchResults.length} เพลง
-              </span>
+              {searchResults.length > 0 && (
+                <span
+                  className="rounded-full border border-white/10 bg-white/4 px-3 py-1 text-[11px] text-zinc-400"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {searchResults.length} results
+                </span>
+              )}
             </div>
 
             {searchResults.length === 0 ? (
-              <div className="text-center py-10 rounded-2xl border border-dashed border-white/15">
-                <div className="text-3xl mb-2">📻</div>
-                <p className="text-gray-500">
-                  ไม่พบเพลงที่ตรงกับเนื้อร้องที่จับได้ ลองร้องใหม่อีกครั้งชัดๆ ครับ
+              /* ไม่พบผลลัพธ์ */
+              <div className="glass slide-up flex flex-col items-center gap-3 rounded-3xl px-6 py-14 text-center">
+                <Disc3 className="h-10 w-10 text-zinc-600" strokeWidth={1.5} />
+                <p className="text-sm leading-relaxed text-zinc-400">
+                  ไม่พบเพลงที่ตรงกับเนื้อร้องที่จับได้
+                  <br />
+                  ลองร้องใหม่ให้ชัดขึ้น หรือพิมพ์เนื้อร้องที่จำได้ครับ
                 </p>
               </div>
             ) : (
-              searchResults.map((song, index) => {
-                const tone = scoreTone(song.score ?? 0);
-                const ytUrl =
-                  song.youtube_url ||
-                  `https://www.youtube.com/results?search_query=${encodeURIComponent(
-                    `${song.song_name} ${song.artist}`
-                  )}`;
+              <>
+                {/* อันดับ 1 — การ์ดใหญ่ */}
+                {topResult && (() => {
+                  const tone = scoreTone(topResult.score);
+                  const ytUrl =
+                    topResult.youtube_url ||
+                    `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                      `${topResult.song_name} ${topResult.artist}`
+                    )}`;
+                  return (
+                    <article className="glass slide-up relative overflow-hidden rounded-3xl p-5 sm:p-7">
+                      <div
+                        className={`pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br ${tone.glow} blur-3xl`}
+                      />
+                      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+                        <ArtTile size="lg" tone={tone} />
 
-                return (
-                  <div
-                    key={index}
-                    className="relative flex gap-4 p-5 rounded-xl border transition-all shadow-lg hover:-translate-y-0.5"
-                    style={{
-                      background: 'var(--bg-surface)',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <span
-                      className="select-none shrink-0 text-3xl leading-none opacity-20"
-                      style={{ fontFamily: 'var(--font-mono)' }}
-                    >
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="min-w-0">
-                          <h3
-                            className="text-lg truncate"
-                            style={{ fontFamily: 'var(--font-display)', color: 'var(--neon-pink)' }}
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <span
+                            className="inline-block rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300"
+                            style={{ fontFamily: 'var(--font-mono)' }}
                           >
-                            {song.song_name}
+                            Top match
+                          </span>
+                          <h3
+                            className="truncate text-2xl leading-snug text-zinc-50 sm:text-3xl"
+                            style={{ fontFamily: 'var(--font-display)' }}
+                          >
+                            {topResult.song_name}
                           </h3>
-                          <p className="text-sm text-gray-400">ศิลปิน: {song.artist}</p>
+                          <p className="truncate text-sm text-zinc-400">{topResult.artist}</p>
+                          <p
+                            className="truncate pt-1 text-xs italic text-zinc-500"
+                            style={{ fontFamily: 'var(--font-mono)' }}
+                          >
+                            &ldquo;{topResult.matched_snippet}&rdquo;
+                          </p>
                         </div>
 
-                        <div
-                          className="shrink-0 relative w-14 h-14 rounded-full flex items-center justify-center"
-                          style={{ background: `conic-gradient(${tone.accent} ${song.score}%, rgba(255,255,255,0.08) 0)` }}
-                        >
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-[11px]"
-                            style={{ background: 'var(--bg-surface)', fontFamily: 'var(--font-mono)' }}
+                        <div className="flex shrink-0 items-center justify-between gap-4 sm:flex-col sm:justify-center">
+                          <ScoreMeter score={topResult.score} />
+                          <a
+                            href={ytUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group inline-flex items-center gap-2 rounded-full bg-red-600 py-2.5 pl-4 pr-5 text-xs font-semibold text-white shadow-lg shadow-red-950/40 transition-all hover:bg-red-500 hover:shadow-red-900/40 active:scale-95"
                           >
-                            <span className={tone.label}>{song.score}%</span>
-                          </div>
+                            <MonitorPlay className="h-4 w-4 transition-transform group-hover:scale-110" />
+                            ฟังบน YouTube
+                          </a>
                         </div>
                       </div>
+                    </article>
+                  );
+                })()}
 
-                      <div
-                        className="pt-3 border-t border-dashed border-white/10 text-xs italic text-gray-300"
+                {/* อันดับถัดไป — แถวย่อ */}
+                {otherResults.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {otherResults.map((song, i) => {
+                      const tone = scoreTone(song.score);
+                      const ytUrl =
+                        song.youtube_url ||
+                        `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                          `${song.song_name} ${song.artist}`
+                        )}`;
+                      return (
+                        <li
+                          key={i}
+                          className={`slide-up group flex items-center gap-4 rounded-2xl border border-white/6 bg-white/[0.03] p-3.5 transition-colors hover:border-white/12 hover:bg-white/[0.055] stagger-${Math.min(i + 1, 5)}`}
+                        >
+                          <span
+                            className="w-6 shrink-0 text-center text-sm text-zinc-600"
+                            style={{ fontFamily: 'var(--font-mono)' }}
+                          >
+                            {i + 2}
+                          </span>
+
+                          <ArtTile size="sm" tone={tone} />
+
+                          <div className="min-w-0 flex-1">
+                            <a
+                              href={ytUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block truncate text-[15px] font-medium text-zinc-100 transition-colors group-hover:text-emerald-300"
+                            >
+                              {song.song_name}
+                            </a>
+                            <p className="truncate text-xs text-zinc-500">{song.artist}</p>
+                            <p
+                              className="mt-0.5 hidden truncate text-[11px] italic text-zinc-600 sm:block"
+                              style={{ fontFamily: 'var(--font-mono)' }}
+                            >
+                              &ldquo;{song.matched_snippet}&rdquo;
+                            </p>
+                          </div>
+
+                          <ScoreMeter score={song.score} />
+
+                          <a
+                            href={ytUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`ฟัง ${song.song_name} บน YouTube`}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-400 transition-all hover:border-red-500/60 hover:bg-red-500/15 hover:text-red-400 active:scale-90"
+                          >
+                            <MonitorPlay className="h-4 w-4" />
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {/* เสียงร้องที่จับได้ */}
+                {transcribedText && (
+                  <div className="slide-up mt-8 flex items-start gap-3 rounded-2xl border border-white/6 bg-white/[0.03] px-5 py-4">
+                    <AudioLines className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                    <div className="min-w-0">
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500"
                         style={{ fontFamily: 'var(--font-mono)' }}
                       >
-                        &ldquo;{song.matched_snippet}&rdquo;
-                      </div>
-
-                      {/* 🔥 ปุ่ม YouTube โฉมใหม่: แดงนีออน เรืองแสง โดดเด่น สวยงาม */}
-                      <div className="pt-3 flex justify-end">
-                        <a
-                          href={ytUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-300 shadow-md hover:shadow-red-600/40 hover:scale-[1.03] active:scale-95"
-                          style={{
-                            background: 'linear-gradient(135deg, #FF0000 0%, #D00000 100%)',
-                            boxShadow: '0 0 15px rgba(255, 0, 0, 0.35)',
-                            fontFamily: 'var(--font-body)',
-                          }}
-                        >
-                          {/* ไอคอน YouTube สัญลักษณ์วงกลมสีขาว */}
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white text-[#FF0000] text-[10px] font-black group-hover:scale-110 transition-transform">
-                            ▶
-                          </span>
-                          <span className="tracking-wide">ฟังเพลงบน YouTube</span>
-                        </a>
-                      </div>
+                        เสียงร้องที่จับได้
+                      </p>
+                      <p className="mt-1 break-words text-sm italic leading-relaxed text-zinc-300">
+                        &ldquo;{transcribedText}&rdquo;
+                      </p>
                     </div>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
-          </div>
+          </section>
         )}
       </div>
 
-      <style jsx>{`
-        .hs-search {
-          --bg-night: #150c24;
-          --bg-surface: #221333;
-          --neon-pink: #ff2d87;
-          --marigold: #ffb020;
-          --teal-glow: #2fe6c4;
-          --paper: #f7efe0;
-        }
-        .halo-ring {
-          animation: ringPulse 3.2s ease-in-out infinite;
-        }
-        @keyframes ringPulse {
-          0%, 100% { transform: scale(0.96); opacity: 0.35; }
-          50% { transform: scale(1.04); opacity: 0.75; }
-        }
-        .bunting-dot {
-          animation: twinkle 2.4s ease-in-out infinite;
-        }
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.35; }
-          50% { opacity: 1; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .halo-ring, .bunting-dot {
-            animation: none !important;
-          }
-        }
-      `}</style>
+      {/* ── Footer ── */}
+      <footer className="border-t border-white/6 py-8 text-center">
+        <p className="text-xs text-zinc-600" style={{ fontFamily: 'var(--font-mono)' }}>
+          HumSearch · ค้นหาเพลงลูกทุ่งด้วยเสียงของคุณ
+        </p>
+      </footer>
     </main>
   );
 }

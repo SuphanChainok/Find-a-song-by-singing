@@ -1,29 +1,42 @@
 import type { Metadata } from "next";
-import { Geist, Inter } from "next/font/google";
+import { Chonburi, IBM_Plex_Sans_Thai, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist",
+const chonburi = Chonburi({
+  subsets: ["thai", "latin"],
+  weight: "400",
+  variable: "--font-display",
+  display: "swap",
 });
 
-const inter = Inter({
+const plexThai = IBM_Plex_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const spaceMono = Space_Mono({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "700"],
+  variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "HumSearch — Find Songs by Humming",
+  title: "HumSearch — ค้นหาเพลงลูกทุ่งด้วยเสียงร้อง",
   description:
-    "Hum or sing any melody to instantly identify the song. Powered by audio recognition technology.",
-  keywords: ["hum to search", "song identifier", "music recognition", "singing search", "find song by humming"],
+    "ฮัมทำนอง ร้องเพลง หรือพิมพ์เนื้อร้อง เพื่อค้นหาเพลงลูกทุ่งที่ใกล้เคียงที่สุด พร้อมฟังต่อบน YouTube",
+  keywords: ["hum to search", "song identifier", "music recognition", "เพลงลูกทุ่ง", "ค้นหาเพลง", "humming search"],
   openGraph: {
-    title: "HumSearch — Find Songs by Humming",
-    description: "Hum or sing any melody to instantly identify the song.",
+    title: "HumSearch — ค้นหาเพลงลูกทุ่งด้วยเสียงร้อง",
+    description: "ฮัมทำนอง ร้องเพลง หรือพิมพ์เนื้อร้อง เพื่อค้นหาเพลงลูกทุ่งที่ใกล้เคียงที่สุด",
     type: "website",
   },
 };
+
+// ใส่ธีมจาก localStorage ก่อนหน้าเว็บ render เพื่อไม่ให้ธีมกระพริบ (no-flash)
+const themeInitScript = `(function(){try{var t=localStorage.getItem('humsearch-theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -31,8 +44,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${geist.variable} ${inter.variable} font-sans antialiased`}>{children}</body>
+    <html lang="th" data-theme="dark" suppressHydrationWarning>
+      <body
+        className={`${chonburi.variable} ${plexThai.variable} ${spaceMono.variable} antialiased`}
+      >
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {children}
+      </body>
     </html>
   );
 }

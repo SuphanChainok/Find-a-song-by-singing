@@ -27,3 +27,17 @@ export interface IdentifyResponse {
 }
 
 export type RecordingState = "idle" | "requesting" | "recording" | "processing" | "error";
+
+export interface SongMatch {
+  song_name: string;
+  artist: string;
+  matched_snippet: string;
+  score: number;
+  youtube_url?: string;
+}
+
+export interface SongSearchResponse {
+  success: boolean;
+  transcribed_text?: string;
+  results?: SongMatch[];
+}

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { computeMatchScore } from '@/lib/scoring';
 
 export interface SearchResult {
   song_name: string;
@@ -23,13 +24,6 @@ export function searchSongs(queryText: string): SearchResult[] {
 
   const cleanQuery = queryText.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
   if (cleanQuery.length < 2) return [];
-
-  const queryChunks: string[] = [];
-  const chunkSize = 2;
-  for (let i = 0; i <= cleanQuery.length - chunkSize; i++) {
-    queryChunks.push(cleanQuery.substring(i, i + chunkSize));
-  }
-  const totalChunks = Math.max(1, queryChunks.length);
 
   const blocks = fileContent.split(/\nen,country_lyrics/g);
   const results: SearchResult[] = [];
@@ -62,23 +56,17 @@ export function searchSongs(queryText: string): SearchResult[] {
     const cleanLyrics = fullLyrics.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
     const cleanTitle = songName.replace(/[\s\n\r\t.,!?'"-]+/g, '').toLowerCase();
 
-    let matchCount = 0;
-    for (const chunk of queryChunks) {
-      if (cleanLyrics.includes(chunk) || cleanTitle.includes(chunk)) {
-        matchCount++;
-      }
-    }
-
-    let score = Math.round((matchCount / totalChunks) * 100);
-
-    if (cleanLyrics.includes(cleanQuery) || cleanTitle.includes(cleanQuery)) {
-      score = 100;
-    }
+    // คะแนน 0–100 คำนวณจริงจาก bigram coverage (ดู src/lib/scoring.ts)
+    const score = computeMatchScore({
+      query: cleanQuery,
+      target: cleanLyrics,
+      title: cleanTitle,
+    });
 
     if (score >= 25) {
       const snippet = lyricLines.slice(0, 3).join(' ');
 
-      // 👈 2. สร้างลิงก์ YouTube ค้นหาเพลง + ศิลปิน
+      // สร้างลิงก์ YouTube ค้นหาจากชื่อเพลง + ศิลปิน
       const searchQuery = encodeURIComponent(`${songName} ${artist}`);
       const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
 
@@ -86,8 +74,8 @@ export function searchSongs(queryText: string): SearchResult[] {
         song_name: songName,
         artist: artist,
         matched_snippet: snippet ? `...${snippet}...` : `...${songName}...`,
-        score: score,
-        youtube_url: youtubeUrl, // 👈 3. ส่ง URL กลับไป
+        score,
+        youtube_url: youtubeUrl,
       });
     }
   }
